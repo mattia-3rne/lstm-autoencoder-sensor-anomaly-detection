@@ -24,17 +24,17 @@ Each scalar entry $x_{i+t-1}$ constitutes the input at timestep $t$ within the w
 
 ### 2.2 The LSTM Cell: Gated State Dynamics
 
-At the core of the autoencoder is the Long Short-Term Memory (LSTM) cell, designed to mitigate the vanishing gradient problem inherent in standard recurrent neural networks. A single LSTM cell maintains two internal state vectors at each timestep $t$: 
+At the core of the autoencoder is the Long Short-Term Memory cell, designed to mitigate the vanishing gradient problem inherent in standard recurrent neural networks. A single LSTM cell maintains two internal state vectors at each timestep $t$: 
 
 1.  **The Cell State** ($\mathbf{c}_t \in \mathbb{R}^p$): This acts as the "conveyor belt" of the network, carrying long-term memory across timesteps with minimal linear interactions, allowing gradients to flow easily during backpropagation.
 2.  **The Hidden State** ($\mathbf{h}_t \in \mathbb{R}^p$): This serves as the working memory and the actual output of the cell for the current timestep, derived directly from the cell state.
 
 Here, $p$ represents the number of hidden units in the encoder layer. Because our sensor data is univariate, the input $x_t \in \mathbb{R}^1$ at any timestep is a simple scalar. Consequently, the input weight matrices reduce to column vectors $\mathbf{W}^E_{\square} \in \mathbb{R}^{p \times 1}$. The recurrent weight matrices, which map the previous hidden state to the current gates, are square matrices $\mathbf{U}^E_{\square} \in \mathbb{R}^{p \times p}$, and the bias vectors are $\mathbf{b}^E_{\square} \in \mathbb{R}^p$.
 
-The state dynamics are governed by four neural network layers inside the cell—commonly called "gates"—that regulate the addition or removal of information to the cell state. Below is the detailed breakdown of the six update equations executed at every timestep $t = 1, \ldots, T$.
+The state dynamics are governed by four neural network layers inside the cell, commonly called gates, that regulate the addition or removal of information to the cell state. Below is the detailed breakdown of the six update equations executed at every timestep $t = 1, \ldots, T$.
 
 #### 1. The Forget Gate ($\mathbf{f}_t$)
-The first step is deciding what information from the previous cell state $\mathbf{c}_{t-1}$ is no longer relevant and should be discarded. The forget gate looks at the current input $x_t$ and the previous hidden state $\mathbf{h}_{t-1}$, and outputs a vector of values between $0$ (completely forget) and $1$ (completely keep).
+The first step is deciding what information from the previous cell state $c_{t-1}$ is no longer relevant and should be discarded. The forget gate looks at the current input $x_t$ and the previous hidden state $h_{t-1}$, and outputs a vector of values between $0$ (completely forget) and $1$ (completely keep).
 
 $$\mathbf{f}_t = \sigma\left(\mathbf{W}^E_f x_t + \mathbf{U}^E_f \mathbf{h}_{t-1} + \mathbf{b}^E_f\right)$$
 
@@ -49,7 +49,7 @@ Next, the cell must decide what new information to store in the cell state. This
 
 $$\mathbf{i}_t = \sigma\left(\mathbf{W}^E_i x_t + \mathbf{U}^E_i \mathbf{h}_{t-1} + \mathbf{b}^E_i\right)$$
 
-Second, a **cell candidate** layer (often denoted by $\mathbf{g}_t$ or $\tilde{\mathbf{c}}_t$) creates a vector of new, raw candidate values that could potentially be added to the state. It uses a hyperbolic tangent function to map values between $-1$ and $1$:
+Second, a **cell candidate** layer $\mathbf{g}_t$ creates a vector of new, raw candidate values that could potentially be added to the state. It uses a hyperbolic tangent function to map values between $-1$ and $1$:
 
 $$\mathbf{g}_t = \tanh\left(\mathbf{W}^E_g x_t + \mathbf{U}^E_g \mathbf{h}_{t-1} + \mathbf{b}^E_g\right)$$
 
@@ -58,14 +58,13 @@ Writing out the explicit matrix operations for the cell candidate vector:
 ```math
 \mathbf{g}_t = \tanh\left( \begin{bmatrix} W^E_{g,1} \\ W^E_{g,2} \\ \vdots \\ W^E_{g,p} \end{bmatrix} x_t + \begin{bmatrix} U^E_{g,11} & U^E_{g,12} & \cdots & U^E_{g,1p} \\ U^E_{g,21} & U^E_{g,22} & \cdots & U^E_{g,2p} \\ \vdots & \vdots & \ddots & \vdots \\ U^E_{g,p1} & U^E_{g,p2} & \cdots & U^E_{g,pp} \end{bmatrix} \begin{bmatrix} h_{t-1,1} \\ h_{t-1,2} \\ \vdots \\ h_{t-1,p} \end{bmatrix} + \begin{bmatrix} b^E_{g,1} \\ b^E_{g,2} \\ \vdots \\ b^E_{g,p} \end{bmatrix} \right)
 ```
-*(The input gate $\mathbf{i}_t$ shares the exact same matrix arithmetic structure, utilizing its own distinct weights $\mathbf{W}^E_i$, $\mathbf{U}^E_i$, and biases $\mathbf{b}^E_i$.)*
 
 #### 3. The Cell State Update ($\mathbf{c}_t$)
 With the gates computed, the actual internal memory of the cell is updated. The previous state $\mathbf{c}_{t-1}$ is multiplied by the forget gate $\mathbf{f}_t$ (dropping information decided in step 1). Then, the new candidate values $\mathbf{g}_t$ are scaled by the input gate $\mathbf{i}_t$ and added to the memory. This represents the new long-term context:
 
 $$\mathbf{c}_t = \mathbf{f}_t \odot \mathbf{c}_{t-1} + \mathbf{i}_t \odot \mathbf{g}_t$$
 
-Here, $\odot$ denotes the elementwise (Hadamard) product. Visually, this is computed row by row:
+Here, $\odot$ denotes the elementwise Hadamard product. Visually, this is computed row by row:
 
 ```math
 \mathbf{c}_t = \begin{bmatrix} f_{t,1} \cdot c_{t-1,1} \\ f_{t,2} \cdot c_{t-1,2} \\ \vdots \\ f_{t,p} \cdot c_{t-1,p} \end{bmatrix} + \begin{bmatrix} i_{t,1} \cdot g_{t,1} \\ i_{t,2} \cdot g_{t,2} \\ \vdots \\ i_{t,p} \cdot g_{t,p} \end{bmatrix} = \begin{bmatrix} f_{t,1} c_{t-1,1} + i_{t,1} g_{t,1} \\ f_{t,2} c_{t-1,2} + i_{t,2} g_{t,2} \\ \vdots \\ f_{t,p} c_{t-1,p} + i_{t,p} g_{t,p} \end{bmatrix}
@@ -152,19 +151,19 @@ $$\text{anomaly}(\mathbf{w}) = \mathbf{1}\left[e(\mathbf{w}) > \tau\right]$$
 
 The model is trained to minimise the average reconstruction error over all $M$ training windows. The loss function is:
 
-$$\mathcal{L}(\boldsymbol{\phi}) = \frac{1}{M} \sum_{i=1}^{M} e(\mathbf{w}_i) = \frac{1}{M \cdot T} \sum_{i=1}^{M} \sum_{t=1}^{T} \left(x_{i,t} - r_{i,t}\right)^2$$
+$$\mathcal{L}(\phi) = \frac{1}{M} \sum_{i=1}^{M} e(w_i) = \frac{1}{M \cdot T} \sum_{i=1}^{M} \sum_{t=1}^{T} (x_{i,t} - r_{i,t})^2$$
 
-where $\boldsymbol{\phi}$ collects all trainable parameters of both LSTMs and the readout layer. The total number of scalar parameters in the encoder LSTM alone is:
+where $\phi$ collects all trainable parameters of both LSTMs and the readout layer. The total number of scalar parameters in the encoder LSTM alone is:
 
-$$|\boldsymbol{\phi}_E| = 4\left(p \cdot 1 + p^2 + p\right) = 4\,p\left(p + 2\right)$$
+$$|\phi_E| = 4(p \cdot 1 + p^2 + p) = 4p(p + 2)$$
 
-since each of the four gates contributes one input weight vector $\mathbf{W}^E_{\square} \in \mathbb{R}^{p \times 1}$, one recurrent weight matrix $\mathbf{U}^E_{\square} \in \mathbb{R}^{p \times p}$, and one bias $\mathbf{b}^E_{\square} \in \mathbb{R}^p$. For the decoder LSTM with input dimension $p$ (the latent code) and hidden dimension $q$, the count is $4\,q(p + q + 1)$.
+since each of the four gates contributes one input weight vector $W^E_{\square} \in \mathbb{R}^{p \times 1}$, one recurrent weight matrix $U^E_{\square} \in \mathbb{R}^{p \times p}$, and one bias $b^E_{\square} \in \mathbb{R}^p$. For the decoder LSTM with input dimension $p$ (the latent code) and hidden dimension $q$, the count is $4q(p + q + 1)$.
 
 ### 3.2 Backpropagation Through Time
 
 Minimising $\mathcal{L}$ requires differentiating through the sequential LSTM unrolling. The gradient with respect to the readout weight $W_{R,j}$ follows directly from the chain rule applied to the squared loss:
 
-$$\frac{\partial \mathcal{L}}{\partial W_{R,j}} = -\frac{2}{M \cdot T} \sum_{i=1}^{M} \sum_{s=1}^{T} \left(x_{i,s} - r_{i,s}\right) s_{i,s,j}$$
+$$\frac{\partial \mathcal{L}}{\partial W_{R,j}} = -\frac{2}{M \cdot T} \sum_{i=1}^{M} \sum_{s=1}^{T} (x_{i,s} - r_{i,s}) s_{i,s,j}$$
 
 For the recurrent weights, the gradient accumulates across all timesteps. For the encoder forget-gate recurrent weight $U^E_{f,jk}$:
 
@@ -172,23 +171,25 @@ $$\frac{\partial \mathcal{L}}{\partial U^E_{f,jk}} = \sum_{i=1}^{M} \sum_{t=1}^{
 
 The last factor is the previous hidden state:
 
-$$\frac{\partial f_{i,t,j}}{\partial U^E_{f,jk}} = \sigma'(a_{f,t,j})\, h_{i,t-1,k}, \qquad \sigma'(v) = \sigma(v)\left(1 - \sigma(v)\right)$$
+$$\frac{\partial f_{i,t,j}}{\partial U^E_{f,jk}} = \sigma'(a_{f,t,j}) h_{i,t-1,k}, \qquad \sigma'(v) = \sigma(v)(1 - \sigma(v))$$
 
-where $a_{f,t,j} = W^E_{f,j}\,x_{i,t} + \sum_k U^E_{f,jk}\,h_{i,t-1,k} + b^E_{f,j}$ is the pre-activation. The error signal $\partial \mathcal{L} / \partial \mathbf{h}_t$ is computed via the backward recurrence from $t = T$ down to $t = 1$:
+where $a_{f,t,j} = W^E_{f,j} x_{i,t} + \sum_k U^E_{f,jk} h_{i,t-1,k} + b^E_{f,j}$ is the pre-activation.
 
-$$\boldsymbol{\delta}_t^h = \frac{\partial \mathcal{L}}{\partial \mathbf{h}_t} = \left({\mathbf{U}^E_f}^\top \boldsymbol{\delta}_{t+1}^f + {\mathbf{U}^E_i}^\top \boldsymbol{\delta}_{t+1}^i + {\mathbf{U}^E_g}^\top \boldsymbol{\delta}_{t+1}^g + {\mathbf{U}^E_o}^\top \boldsymbol{\delta}_{t+1}^o\right) + \frac{\partial \mathcal{L}}{\partial \mathbf{z}}\,\mathbf{1}_{[t = T]}$$
+The error signal $\partial \mathcal{L} / \partial h_t$ is computed via the backward recurrence from $t = T$ down to $t = 1$:
 
-where $\boldsymbol{\delta}_{t}^f = (\boldsymbol{\delta}_t^h \odot \mathbf{o}_t \odot (1 - \tanh^2(\mathbf{c}_t)) \odot \mathbf{c}_{t-1}) \odot \sigma'(\mathbf{a}_{f,t})$ is the gate-level error, and $\partial \mathcal{L} / \partial \mathbf{z}$ is back-propagated from the decoder through the bottleneck connection. This backward recurrence constitutes the core of BPTT.
+$$\delta_t^h = \frac{\partial \mathcal{L}}{\partial h_t} = ({U^E_f}^\top \delta_{t+1}^f + {U^E_i}^\top \delta_{t+1}^i + {U^E_g}^\top \delta_{t+1}^g + {U^E_o}^\top \delta_{t+1}^o) + \frac{\partial \mathcal{L}}{\partial z} 1_{[t = T]}$$
+
+where $\delta_{t}^f = (\delta_t^h \odot o_t \odot (1 - \tanh^2(c_t)) \odot c_{t-1}) \odot \sigma'(a_{f,t})$ is the gate-level error, and $\partial\mathcal{L}/\partial z$ is back-propagated from the decoder through the bottleneck connection. This backward recurrence constitutes the core of BPTT.
 
 ### 3.3 The Anomaly Decision Rule
 
 For a chosen false-positive rate $\alpha \in (0, 1)$, the full decision pipeline from raw window to binary label is:
 
-$$\mathbf{w} \;\xrightarrow{\;\text{Encoder}\;}\; \mathbf{z} = \mathbf{h}_T \;\xrightarrow{\;\text{Decoder}\;}\; \mathbf{r} \;\xrightarrow{\;\text{MSE}\;}\; e(\mathbf{w}) = \frac{1}{T}\|\mathbf{w} - \mathbf{r}\|_2^2 \;\xrightarrow{\;\text{threshold}\;}\; \mathbf{1}\left[e(\mathbf{w}) > \tau\right]$$
+$$w \xrightarrow{\text{Encoder}} z = h_T \xrightarrow{\text{Decoder}} r \xrightarrow{\text{MSE}} e(w) = \frac{1}{T}\|w - r\|_2^2 \xrightarrow{\text{threshold}} 1[e(w) > \tau]$$
 
 where the threshold is:
 
-$$\tau = \mu_e + \Phi^{-1}(1 - \alpha)\, \sigma_e$$
+$$\tau = \mu_e + \Phi^{-1}(1 - \alpha) \sigma_e$$
 
 Common choices are $\alpha = 0.05$ (giving $\Phi^{-1}(0.95) \approx 1.645$) and $\alpha = 0.01$ (giving $\Phi^{-1}(0.99) \approx 2.326$). A more conservative threshold reduces false positives at the cost of increased false negatives. Under the Gaussian assumption, the expected fraction of normal windows incorrectly flagged is exactly $\alpha$.
 
@@ -200,14 +201,14 @@ The computational framework is structured as a four-phase sequential pipeline op
 
 | Phase | Process | Methodological Details |
 | :--- | :--- | :--- |
-| **1** | **Data Ingestion** | Loads both CSV files directly from the NAB GitHub repository via `pandas.read_csv`. Parses the `timestamp` column as a `datetime` index. Saves raw DataFrames to the `data/` directory. Computes normalisation statistics $\mu$, $\sigma$ from the anomaly-free series only to prevent data leakage. |
+| **1** | **Data Ingestion** | Loads both CSV files directly from the NAB GitHub repository. Parses the timestamp-column as a datetime-index. Saves raw DataFrames to the data-directory. Computes normalisation statistics $\mu$, $\sigma$ from the anomaly-free series only to prevent data leakage. |
 | **2** | **Window Construction** | Applies the sliding-window procedure with stride 1 to both standardised series, producing NumPy arrays of shape $(N - T + 1, T, 1)$. Splits the normal-data windows into a training partition and a validation partition. |
 | **3** | **Model Training** | Instantiates the encoder–decoder LSTM, compiles with the Adam optimiser and MSE loss $\mathcal{L}(\boldsymbol{\phi})$. Trains for a fixed number of epochs with early stopping monitored on validation loss. |
 | **4** | **Anomaly Scoring** | Runs inference on all test windows, computes per-window MSE, estimates $\mu_e$ and $\sigma_e$ from training-set errors, applies the threshold $\tau$, and overlays detected anomaly regions on the original time series. |
 
 ### 4.1 Data Ingestion and Normalisation
 
-Both datasets are fetched from their respective raw-content URLs. Each CSV has two columns: `timestamp` (parsed as `pd.Timestamp`) and `value` (float64). Normalisation parameters are estimated from the training series alone, where $K$ is the length of the normal sequence:
+Both datasets are fetched from their respective raw-content URLs. Each CSV has two columns: timestamp (parsed as pd.Timestamp) and value (float64). Normalisation parameters are estimated from the training series alone, where $K$ is the length of the normal sequence:
 
 $$\mu = \frac{1}{K}\sum_{t=1}^{K} y_t, \qquad \sigma = \sqrt{\frac{1}{K}\sum_{t=1}^{K}\left(y_t - \mu\right)^2}$$
 
@@ -219,13 +220,13 @@ For window length $T$, encoder hidden size $p$, and decoder hidden size $q$, the
 
 | Layer | Parameter | Shape |
 | :--- | :--- | :--- |
-| Encoder LSTM | $\mathbf{W}^E_{\square}$ (×4 gates) | $\mathbb{R}^{p \times 1}$ |
-| Encoder LSTM | $\mathbf{U}^E_{\square}$ (×4 gates) | $\mathbb{R}^{p \times p}$ |
-| Encoder LSTM | $\mathbf{b}^E_{\square}$ (×4 gates) | $\mathbb{R}^{p}$ |
-| Decoder LSTM | $\mathbf{W}^D_{\square}$ (×4 gates) | $\mathbb{R}^{q \times p}$ |
-| Decoder LSTM | $\mathbf{U}^D_{\square}$ (×4 gates) | $\mathbb{R}^{q \times q}$ |
-| Decoder LSTM | $\mathbf{b}^D_{\square}$ (×4 gates) | $\mathbb{R}^{q}$ |
-| Readout | $\mathbf{W}_R$ | $\mathbb{R}^{1 \times q}$ |
+| Encoder LSTM | $W^E_{\square}$ (×4 gates) | $\mathbb{R}^{p \times 1}$ |
+| Encoder LSTM | $U^E_{\square}$ (×4 gates) | $\mathbb{R}^{p \times p}$ |
+| Encoder LSTM | $b^E_{\square}$ (×4 gates) | $\mathbb{R}^{p}$ |
+| Decoder LSTM | $W^D_{\square}$ (×4 gates) | $\mathbb{R}^{q \times p}$ |
+| Decoder LSTM | $U^D_{\square}$ (×4 gates) | $\mathbb{R}^{q \times q}$ |
+| Decoder LSTM | $b^D_{\square}$ (×4 gates) | $\mathbb{R}^{q}$ |
+| Readout | $W_R$ | $\mathbb{R}^{1 \times q}$ |
 | Readout | $b_R$ | $\mathbb{R}^1$ |
 
 ---
@@ -252,7 +253,7 @@ For window length $T$, encoder hidden size $p$, and decoder hidden size $q$, the
 
 1.  **Clone the repository**:
 ```bash
-    git clone [https://github.com/mattia-3rne/lstm-autoencoder-anomaly-detection.git](https://github.com/mattia-3rne/lstm-autoencoder-anomaly-detection.git)
+    git clone https://github.com/mattia-3rne/lstm-autoencoder-sensor-anomaly-detection.git
 ```
 
 2.  **Install dependencies**:
@@ -269,5 +270,5 @@ For window length $T$, encoder hidden size $p$, and decoder hidden size $q$, the
 
 ## Repository Structure
 * `requirements.txt`: Python dependencies
-* `data/`: Downloaded CSV files (`art_daily_small_noise.csv`, `art_daily_jumpsup.csv` created automatically on first run)
 * `main.ipynb`: Primary notebook
+* `data/`: Data directory

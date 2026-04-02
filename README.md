@@ -239,7 +239,6 @@ For window length $T$, encoder hidden size $p$, and decoder hidden size $q$, the
 | **Stationarity Requirement** | Normalisation statistics $\mu$ and $\sigma$ are estimated once from the full training series. If the sensor signal exhibits slow drift or regime changes, the fixed normalisation inflates reconstruction errors on later normal windows, raising the false-positive rate over time. |
 | **Window Length Sensitivity** | The window length $T$ must be chosen to capture at least one full period of the dominant oscillation. A window that is too short discards temporal context; one that is too long dilutes anomaly signatures by averaging them with many normal timesteps, reducing $e(\mathbf{w})$ and lowering detection sensitivity. |
 | **Vanishing Gradients in BPTT** | Despite the gating mechanism, backpropagation through very long sequences can suffer from vanishing gradients. For $T \gg 300$, the error signal $\boldsymbol{\delta}_t^h$ decays in norm for early timesteps, and the encoder may fail to encode long-range dependencies in the latent code $\mathbf{z}$. |
-| **Univariate Architecture** | The current design processes a single scalar channel ($d = 1$). Extending to multivariate sensor arrays requires replacing $\mathbf{W}_{\square} \in \mathbb{R}^{p \times 1}$ with $\mathbf{W}_{\square} \in \mathbb{R}^{p \times d}$ and adapting the readout layer to $\mathbf{W}_R \in \mathbb{R}^{d \times q}$, along with a multivariate MSE summed over all $d$ channels. |
 
 ---
 

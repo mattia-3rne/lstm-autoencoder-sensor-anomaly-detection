@@ -20,7 +20,7 @@ The standardised series is then segmented into overlapping windows of fixed leng
 \mathbf{w}_i = \begin{bmatrix} x_i \\ x_{i+1} \\ \vdots \\ x_{i+T-1} \end{bmatrix} \in \mathbb{R}^T, \qquad i = 1, 2, \ldots, N - T + 1
 ```
 
-Each scalar entry $x_{i+t-1}$ constitutes the input at timestep $t$ within the window. The full dataset of windows is partitioned into a training set $\mathcal{X}$ drawn exclusively from the anomaly-free recording (`art_daily_small_noise.csv`), and a test set $\mathcal{Y}$ drawn from the anomalous recording re(`art_daily_jumpsup.csv`).
+Each scalar entry $x_{i+t-1}$ constitutes the input at timestep $t$ within the window. The full dataset of windows is partitioned into a training set $\mathcal{X}$ drawn exclusively from the anomaly-free recording, and a test set $\mathcal{Y}$ drawn from the anomalous recording.
 
 ### 2.2 The LSTM Cell: Gated State Dynamics
 
@@ -41,7 +41,7 @@ $$\mathbf{f}_t = \sigma\left(\mathbf{W}^E_f x_t + \mathbf{U}^E_f \mathbf{h}_{t-1
 Where $\sigma(v) = (1 + e^{-v})^{-1}$ is the elementwise sigmoid activation function. Expanding this into its explicit matrix formulation shows how the scalar input and the hidden state vector linearly combine before the activation:
 
 ```math
-\mathbf{f}_t = \sigma\!\left( \begin{bmatrix} W^E_{f,1} \\ W^E_{f,2} \\ \vdots \\ W^E_{f,p} \end{bmatrix} x_t + \begin{bmatrix} U^E_{f,11} & U^E_{f,12} & \cdots & U^E_{f,1p} \\ U^E_{f,21} & U^E_{f,22} & \cdots & U^E_{f,2p} \\ \vdots & \vdots & \ddots & \vdots \\ U^E_{f,p1} & U^E_{f,p2} & \cdots & U^E_{f,pp} \end{bmatrix} \begin{bmatrix} h_{t-1,1} \\ h_{t-1,2} \\ \vdots \\ h_{t-1,p} \end{bmatrix} + \begin{bmatrix} b^E_{f,1} \\ b^E_{f,2} \\ \vdots \\ b^E_{f,p} \end{bmatrix} \right)
+\mathbf{f}_t = \sigma\left( \begin{bmatrix} W^E_{f,1} \\ W^E_{f,2} \\ \vdots \\ W^E_{f,p} \end{bmatrix} x_t + \begin{bmatrix} U^E_{f,11} & U^E_{f,12} & \cdots & U^E_{f,1p} \\ U^E_{f,21} & U^E_{f,22} & \cdots & U^E_{f,2p} \\ \vdots & \vdots & \ddots & \vdots \\ U^E_{f,p1} & U^E_{f,p2} & \cdots & U^E_{f,pp} \end{bmatrix} \begin{bmatrix} h_{t-1,1} \\ h_{t-1,2} \\ \vdots \\ h_{t-1,p} \end{bmatrix} + \begin{bmatrix} b^E_{f,1} \\ b^E_{f,2} \\ \vdots \\ b^E_{f,p} \end{bmatrix} \right)
 ```
 
 #### 2. The Input Gate ($\mathbf{i}_t$) and Cell Candidate ($\mathbf{g}_t$)
@@ -56,7 +56,7 @@ $$\mathbf{g}_t = \tanh\left(\mathbf{W}^E_g x_t + \mathbf{U}^E_g \mathbf{h}_{t-1}
 Writing out the explicit matrix operations for the cell candidate vector:
 
 ```math
-\mathbf{g}_t = \tanh\!\left( \begin{bmatrix} W^E_{g,1} \\ W^E_{g,2} \\ \vdots \\ W^E_{g,p} \end{bmatrix} x_t + \begin{bmatrix} U^E_{g,11} & U^E_{g,12} & \cdots & U^E_{g,1p} \\ U^E_{g,21} & U^E_{g,22} & \cdots & U^E_{g,2p} \\ \vdots & \vdots & \ddots & \vdots \\ U^E_{g,p1} & U^E_{g,p2} & \cdots & U^E_{g,pp} \end{bmatrix} \begin{bmatrix} h_{t-1,1} \\ h_{t-1,2} \\ \vdots \\ h_{t-1,p} \end{bmatrix} + \begin{bmatrix} b^E_{g,1} \\ b^E_{g,2} \\ \vdots \\ b^E_{g,p} \end{bmatrix} \right)
+\mathbf{g}_t = \tanh\left( \begin{bmatrix} W^E_{g,1} \\ W^E_{g,2} \\ \vdots \\ W^E_{g,p} \end{bmatrix} x_t + \begin{bmatrix} U^E_{g,11} & U^E_{g,12} & \cdots & U^E_{g,1p} \\ U^E_{g,21} & U^E_{g,22} & \cdots & U^E_{g,2p} \\ \vdots & \vdots & \ddots & \vdots \\ U^E_{g,p1} & U^E_{g,p2} & \cdots & U^E_{g,pp} \end{bmatrix} \begin{bmatrix} h_{t-1,1} \\ h_{t-1,2} \\ \vdots \\ h_{t-1,p} \end{bmatrix} + \begin{bmatrix} b^E_{g,1} \\ b^E_{g,2} \\ \vdots \\ b^E_{g,p} \end{bmatrix} \right)
 ```
 *(The input gate $\mathbf{i}_t$ shares the exact same matrix arithmetic structure, utilizing its own distinct weights $\mathbf{W}^E_i$, $\mathbf{U}^E_i$, and biases $\mathbf{b}^E_i$.)*
 
@@ -92,15 +92,15 @@ The initial states for the very first timestep of the window are defined as $\ma
 
 The autoencoder is composed of two LSTM modules and a single shared linear readout layer.
 
-**Encoder.** The encoder LSTM with $p$ hidden units processes the full input window sequentially from $t = 1$ to $t = T$. Only the terminal hidden state is retained as the latent code:
+**Encoder:** The encoder LSTM with $p$ hidden units processes the full input window sequentially from $t = 1$ to $t = T$. Only the terminal hidden state is retained as the latent code:
 
 $$\mathbf{z} = \mathbf{h}_T \in \mathbb{R}^p$$
 
 The terminal cell state $\mathbf{c}_T$ is also forwarded to the decoder as its initial cell state to preserve gradient flow through the bottleneck during backpropagation.
 
-**Bottleneck.** The latent vector $\mathbf{z}$ has dimension $p \ll T$, forcing the encoder to extract a compact summary of the temporal pattern. For a window of length $T = 288$ and $p = 128$, the compression ratio is $288 : 128 \approx 2.25$. Normal windows, which exhibit a consistent periodic structure, compress and reconstruct faithfully; anomalous windows deviate from the learned manifold and incur high reconstruction error.
+**Bottleneck:** The latent vector $\mathbf{z}$ has dimension $p \ll T$, forcing the encoder to extract a compact summary of the temporal pattern. For a window of length $T = 288$ and $p = 128$, the compression ratio is $288 : 128 \approx 2.25$. Normal windows, which exhibit a consistent periodic structure, compress and reconstruct faithfully; anomalous windows deviate from the learned manifold and incur high reconstruction error.
 
-**Decoder.** The decoder receives the latent code broadcast across all $T$ positions. Define the repeated input matrix:
+**Decoder:** The decoder receives the latent code broadcast across all $T$ positions. Define the repeated input matrix:
 
 ```math
 \mathbf{Z} = \begin{bmatrix} \mathbf{z}^\top \\ \mathbf{z}^\top \\ \vdots \\ \mathbf{z}^\top \end{bmatrix} \in \mathbb{R}^{T \times p}
@@ -142,7 +142,7 @@ $$\tau = \mu_e + \Phi^{-1}(1 - \alpha)\, \sigma_e$$
 
 where $\Phi^{-1}$ is the standard normal quantile function. A window is declared anomalous if and only if its reconstruction error exceeds the threshold:
 
-$$\text{anomaly}(\mathbf{w}) = \mathbf{1}\!\left[e(\mathbf{w}) > \tau\right]$$
+$$\text{anomaly}(\mathbf{w}) = \mathbf{1}\left[e(\mathbf{w}) > \tau\right]$$
 
 ---
 
@@ -156,7 +156,7 @@ $$\mathcal{L}(\boldsymbol{\phi}) = \frac{1}{M} \sum_{i=1}^{M} e(\mathbf{w}_i) = 
 
 where $\boldsymbol{\phi}$ collects all trainable parameters of both LSTMs and the readout layer. The total number of scalar parameters in the encoder LSTM alone is:
 
-$$|\boldsymbol{\phi}_E| = 4\!\left(p \cdot 1 + p^2 + p\right) = 4\,p\left(p + 2\right)$$
+$$|\boldsymbol{\phi}_E| = 4\left(p \cdot 1 + p^2 + p\right) = 4\,p\left(p + 2\right)$$
 
 since each of the four gates contributes one input weight vector $\mathbf{W}^E_{\square} \in \mathbb{R}^{p \times 1}$, one recurrent weight matrix $\mathbf{U}^E_{\square} \in \mathbb{R}^{p \times p}$, and one bias $\mathbf{b}^E_{\square} \in \mathbb{R}^p$. For the decoder LSTM with input dimension $p$ (the latent code) and hidden dimension $q$, the count is $4\,q(p + q + 1)$.
 
@@ -172,7 +172,7 @@ $$\frac{\partial \mathcal{L}}{\partial U^E_{f,jk}} = \sum_{i=1}^{M} \sum_{t=1}^{
 
 The last factor is the previous hidden state:
 
-$$\frac{\partial f_{i,t,j}}{\partial U^E_{f,jk}} = \sigma'(a_{f,t,j})\, h_{i,t-1,k}, \qquad \sigma'(v) = \sigma(v)\bigl(1 - \sigma(v)\bigr)$$
+$$\frac{\partial f_{i,t,j}}{\partial U^E_{f,jk}} = \sigma'(a_{f,t,j})\, h_{i,t-1,k}, \qquad \sigma'(v) = \sigma(v)\left(1 - \sigma(v)\right)$$
 
 where $a_{f,t,j} = W^E_{f,j}\,x_{i,t} + \sum_k U^E_{f,jk}\,h_{i,t-1,k} + b^E_{f,j}$ is the pre-activation. The error signal $\partial \mathcal{L} / \partial \mathbf{h}_t$ is computed via the backward recurrence from $t = T$ down to $t = 1$:
 
@@ -184,7 +184,7 @@ where $\boldsymbol{\delta}_{t}^f = (\boldsymbol{\delta}_t^h \odot \mathbf{o}_t \
 
 For a chosen false-positive rate $\alpha \in (0, 1)$, the full decision pipeline from raw window to binary label is:
 
-$$\mathbf{w} \;\xrightarrow{\;\text{Encoder}\;}\; \mathbf{z} = \mathbf{h}_T \;\xrightarrow{\;\text{Decoder}\;}\; \mathbf{r} \;\xrightarrow{\;\text{MSE}\;}\; e(\mathbf{w}) = \frac{1}{T}\|\mathbf{w} - \mathbf{r}\|_2^2 \;\xrightarrow{\;\text{threshold}\;}\; \mathbf{1}\!\left[e(\mathbf{w}) > \tau\right]$$
+$$\mathbf{w} \;\xrightarrow{\;\text{Encoder}\;}\; \mathbf{z} = \mathbf{h}_T \;\xrightarrow{\;\text{Decoder}\;}\; \mathbf{r} \;\xrightarrow{\;\text{MSE}\;}\; e(\mathbf{w}) = \frac{1}{T}\|\mathbf{w} - \mathbf{r}\|_2^2 \;\xrightarrow{\;\text{threshold}\;}\; \mathbf{1}\left[e(\mathbf{w}) > \tau\right]$$
 
 where the threshold is:
 
@@ -207,12 +207,7 @@ The computational framework is structured as a four-phase sequential pipeline op
 
 ### 4.1 Data Ingestion and Normalisation
 
-Both datasets are fetched at the raw-content URL, e.g.:
-```text
-[https://raw.githubusercontent.com/numenta/NAB/master/data/artificialNoAnomaly/art_daily_small_noise.csv](https://raw.githubusercontent.com/numenta/NAB/master/data/artificialNoAnomaly/art_daily_small_noise.csv)
-```
-
-Each CSV has two columns: `timestamp` (parsed as `pd.Timestamp`) and `value` (float64). Normalisation parameters are estimated from the training series alone, where $K$ is the length of the normal sequence:
+Both datasets are fetched from their respective raw-content URLs. Each CSV has two columns: `timestamp` (parsed as `pd.Timestamp`) and `value` (float64). Normalisation parameters are estimated from the training series alone, where $K$ is the length of the normal sequence:
 
 $$\mu = \frac{1}{K}\sum_{t=1}^{K} y_t, \qquad \sigma = \sqrt{\frac{1}{K}\sum_{t=1}^{K}\left(y_t - \mu\right)^2}$$
 
@@ -274,7 +269,5 @@ For window length $T$, encoder hidden size $p$, and decoder hidden size $q$, the
 
 ## Repository Structure
 * `requirements.txt`: Python dependencies
-
-* `data/`: Downloaded CSV files (created automatically on first run)
-
+* `data/`: Downloaded CSV files (`art_daily_small_noise.csv`, `art_daily_jumpsup.csv` created automatically on first run)
 * `main.ipynb`: Primary notebook

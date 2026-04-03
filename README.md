@@ -147,7 +147,7 @@ $$\tau = \mu_e + \Phi^{-1}(1 - \alpha)\, \sigma_e$$
 
 where $\Phi^{-1}$ is the standard normal quantile function. A window is declared anomalous if and only if its reconstruction error exceeds the threshold:
 
-$$\text{anomaly}(\mathbf{w}) = \mathbf{1}\left[e(\mathbf{w}) > \tau\right]$$
+$$a(\mathbf{w}) = \mathbb{1}\left[e(\mathbf{w}) > \tau\right]$$
 
 ---
 

@@ -191,8 +191,7 @@ where $\delta_{t}^f = (\delta_t^h \odot o_t \odot (1 - \tanh^2(c_t)) \odot c_{t-
 
 For a chosen false-positive rate $\alpha \in (0, 1)$, the full decision pipeline from raw window to binary label is:
 
-$$w \xrightarrow{\text{Encoder}} z = h_T \xrightarrow{\text{Decoder}} r \xrightarrow{\text{MSE}} e(w) = \frac{1}{T}\|w - r\|_2^2 \xrightarrow{\text{threshold}} 1[e(w) > \tau]$$
-
+$$\mathbf{w} \xrightarrow{\text{Encoder}} \mathbf{z} \xrightarrow{\text{Decoder}} \mathbf{r} \xrightarrow{\text{MSE}} e(\mathbf{w}) \xrightarrow{\tau} a(\mathbf{w}) = \mathbb{1}\left[e(\mathbf{w}) > \tau\right]$$
 where the threshold is:
 
 $$\tau = \mu_e + \Phi^{-1}(1 - \alpha) \sigma_e$$

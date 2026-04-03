@@ -49,6 +49,12 @@ Next, the cell must decide what new information to store in the cell state. This
 
 $$\mathbf{i}_t = \sigma\left(\mathbf{W}^E_i x_t + \mathbf{U}^E_i \mathbf{h}_{t-1} + \mathbf{b}^E_i\right)$$
 
+Expanding the input gate into its full matrix-vector representation:
+
+```math
+\mathbf{i}_t = \sigma\left( \begin{bmatrix} W^E_{i,1} \\ W^E_{i,2} \\ \vdots \\ W^E_{i,p} \end{bmatrix} x_t + \begin{bmatrix} U^E_{i,11} & U^E_{i,12} & \cdots & U^E_{i,1p} \\ U^E_{i,21} & U^E_{i,22} & \cdots & U^E_{i,2p} \\ \vdots & \vdots & \ddots & \vdots \\ U^E_{i,p1} & U^E_{i,p2} & \cdots & U^E_{i,pp} \end{bmatrix} \begin{bmatrix} h_{t-1,1} \\ h_{t-1,2} \\ \vdots \\ h_{t-1,p} \end{bmatrix} + \begin{bmatrix} b^E_{i,1} \\ b^E_{i,2} \\ \vdots \\ b^E_{i,p} \end{bmatrix} \right)
+```
+
 Second, a **cell candidate** layer $\mathbf{g}_t$ creates a vector of new, raw candidate values that could potentially be added to the state. It uses a hyperbolic tangent function to map values between $-1$ and $1$:
 
 $$\mathbf{g}_t = \tanh\left(\mathbf{W}^E_g x_t + \mathbf{U}^E_g \mathbf{h}_{t-1} + \mathbf{b}^E_g\right)$$
@@ -269,5 +275,8 @@ For window length $T$, encoder hidden size $p$, and decoder hidden size $q$, the
 
 ## Repository Structure
 * `requirements.txt`: Python dependencies
+* `preprocessing.py`: Data loading
 * `main.ipynb`: Primary notebook
-* `data/`: Data directory
+* `model.py`: Model architecture
+* `train.py`: Training logic
+* `utils.py`: Functions

@@ -275,7 +275,8 @@ For window length $T$, encoder hidden size $p$, and decoder hidden size $q$, the
 
 ## Repository Structure
 * `requirements.txt`: Python dependencies
-* `preprocessing.py`: Data loading
+* `preprocessing.py`: Data loading script
+* `weights.npz`: Autoencoder weights
 * `main.ipynb`: Primary notebook
 * `model.py`: Model architecture
 * `train.py`: Training logic

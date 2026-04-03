@@ -4,7 +4,15 @@ import numpy as np
 def load_from_url(url):
     response = urllib.request.urlopen(url)
     data = response.read().decode('utf-8').strip().split('\n')[1:]
-    values = [float(row.split(',')[1]) for row in data]
+    
+    values = []
+    for row in data:
+        try:
+            val = float(row.split(',')[1])
+            values.append(val)
+        except (ValueError, IndexError):
+            continue
+            
     return np.array(values).reshape(-1, 1)
 
 def compute_statistics(data):

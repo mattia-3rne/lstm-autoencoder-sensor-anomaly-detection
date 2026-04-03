@@ -2,7 +2,7 @@
 
 ## 1. Abstract
 
-This repository presents a deep learning framework for unsupervised anomaly detection in univariate sensor time series using a Long Short-Term Memory (LSTM) Autoencoder. The motivating scenario is a continuously operating sensor system that produces a regular, periodic signal under nominal conditions; deviations from learned normal behaviour indicate faults, measurement errors, or physical anomalies. The model is trained exclusively on normal data, learning to compress and reconstruct typical temporal patterns through a fixed-dimensional latent bottleneck. At inference time, the per-window reconstruction error serves as a pointwise anomaly score, and windows whose error exceeds a statistically derived threshold are flagged as anomalous. The framework covers the complete numerical pipeline: sliding-window sequence construction, the explicit LSTM cell dynamics and their matrix formulations, the encoder–decoder bottleneck architecture, the mean-squared-error training objective, backpropagation through time, and the Gaussian-quantile thresholding rule applied to held-out normal data.
+This repository presents a deep learning framework for unsupervised anomaly detection in univariate sensor time series using a Long Short-Term Memory (LSTM) Autoencoder. The motivating scenario is a continuously operating sensor system that produces characteristic operational patterns under nominal conditions; deviations from learned normal behaviour indicate faults, measurement errors, or physical anomalies. The model is trained exclusively on normal data, learning to compress and reconstruct typical temporal patterns through a fixed-dimensional latent bottleneck. At inference time, the per-window reconstruction error serves as a pointwise anomaly score, and windows whose error exceeds a statistically derived threshold are flagged as anomalous. The framework covers the complete numerical pipeline: sliding-window sequence construction, the explicit LSTM cell dynamics and their matrix formulations, the encoder–decoder bottleneck architecture, the mean-squared-error training objective, backpropagation through time, and the Gaussian-quantile thresholding rule applied to the normal training data.
 
 ---
 
@@ -10,17 +10,15 @@ This repository presents a deep learning framework for unsupervised anomaly dete
 
 ### 2.1 Time-Series Representation and Sliding-Window Construction
 
-Let $\{y_t\}_{t=1}^{N}$ denote a univariate time series of $N$ scalar sensor readings sampled at a fixed interval $\Delta t$. Before modelling, the series is standardised to zero mean and unit variance using statistics estimated from the anomaly-free training recording only. If the training recording contains $K$ samples:
+Let $\{y_t\}_{t=1}^{N}$ denote a univariate time series of $N$ scalar sensor readings sampled at a fixed interval $\Delta t$. Before modelling, the series is standardised to zero mean and unit variance. To prevent data leakage, the statistics are estimated exclusively from the first $K$ samples, which is the designated anomaly-free period:
 
 $$x_t = \frac{y_t - \mu}{\sigma}, \qquad \mu = \frac{1}{K}\sum_{t=1}^{K} y_t, \qquad \sigma = \sqrt{\frac{1}{K}\sum_{t=1}^{K}(y_t - \mu)^2}$$
 
-The standardised series is then segmented into overlapping windows of fixed length $T$ with stride 1. The $i$-th window is the column vector:
+The standardized series is then segmented into overlapping windows of fixed length $T$ with stride 1. The $i$-th window is the column vector:
 
-```math
-\mathbf{w}_i = \begin{bmatrix} x_i \\ x_{i+1} \\ \vdots \\ x_{i+T-1} \end{bmatrix} \in \mathbb{R}^T, \qquad i = 1, 2, \ldots, N - T + 1
-```
+$$\mathbf{w}_i = \begin{bmatrix} x_i \\ x_{i+1} \\ \vdots \\ x_{i+T-1} \end{bmatrix} \in \mathbb{R}^T, \qquad i = 1, 2, \ldots, N - T + 1$$
 
-Each scalar entry $x_{i+t-1}$ constitutes the input at timestep $t$ within the window. The full dataset of windows is partitioned into a training set $\mathcal{X}$ drawn exclusively from the anomaly-free recording, and a test set $\mathcal{Y}$ drawn from the anomalous recording.
+Each scalar entry $x_{i+t-1}$ constitutes the input at timestep $t$ within the window. The dataset is partitioned chronologically: the training set $\mathcal{X}$ consists of windows derived from the first $K$ samples of the sequence, while the test set $\mathcal{Y}$ encompasses the remainder of the series, including the periods of system failure and degradation.
 
 ### 2.2 The LSTM Cell: Gated State Dynamics
 
@@ -103,7 +101,7 @@ $$\mathbf{z} = \mathbf{h}_T \in \mathbb{R}^p$$
 
 The terminal cell state $\mathbf{c}_T$ is also forwarded to the decoder as its initial cell state to preserve gradient flow through the bottleneck during backpropagation.
 
-**Bottleneck:** The latent vector $\mathbf{z}$ has dimension $p \ll T$, forcing the encoder to extract a compact summary of the temporal pattern. For a window of length $T = 288$ and $p = 128$, the compression ratio is $288 : 128 \approx 2.25$. Normal windows, which exhibit a consistent periodic structure, compress and reconstruct faithfully; anomalous windows deviate from the learned manifold and incur high reconstruction error.
+**Bottleneck:** The latent vector $\mathbf{z}$ has dimension $p \ll T$, forcing the encoder to extract a compact summary of the temporal pattern. For a window of length $T = 72$ and $p = 64$, the compression ratio is $72 : 64 \approx 1.125$. Normal windows, which exhibit a consistent periodic structure, compress and reconstruct faithfully; anomalous windows deviate from the learned manifold and incur high reconstruction error.
 
 **Decoder:** The decoder receives the latent code broadcast across all $T$ positions. Define the repeated input matrix:
 
@@ -133,7 +131,7 @@ Because the model is trained only on normal data, the decoder has learned to inv
 
 ### 2.5 Gaussian-Quantile Thresholding
 
-After training, the model is evaluated on the held-out normal windows to obtain the empirical distribution of reconstruction errors under nominal conditions:
+After training, the model is evaluated on the normal training windows to obtain the empirical distribution of reconstruction errors under nominal conditions:
 
 $$\mathcal{E} = \{ e(\mathbf{w}_i) \mid \mathbf{w}_i \in \mathcal{X} \}$$
 
@@ -141,11 +139,15 @@ Assuming $\mathcal{E}$ is approximately Gaussian, the sample mean and standard d
 
 $$\mu_e = \frac{1}{M}\sum_{i=1}^{M} e(\mathbf{w}_i), \qquad \sigma_e = \sqrt{\frac{1}{M}\sum_{i=1}^{M}\left(e(\mathbf{w}_i) - \mu_e\right)^2}$$
 
-The anomaly threshold $\tau$ is set at the $(1 - \alpha)$-quantile of this fitted distribution:
+The anomaly threshold $\tau$ is defined as:
 
-$$\tau = \mu_e + \Phi^{-1}(1 - \alpha)\, \sigma_e$$
+$$\tau = \mu_e + z \sigma_e \quad \text{with} \quad z = \Phi^{-1}(1 - \alpha)$$
 
-where $\Phi^{-1}$ is the standard normal quantile function. A window is declared anomalous if and only if its reconstruction error exceeds the threshold:
+where $\Phi^{-1}$ is the standard normal quantile function. In this formulation, **$\alpha$** represents the statistical tail probability, the exact fraction of normal windows we expect to incorrectly flag as anomalies. The term **$z$** is the corresponding mathematical distance, representing how many standard deviations away from the mean a reconstruction error must be to trigger an alarm.
+
+Because real-world machinery data contains natural temperature fluctuations and noise, standard theoretical choices like $\alpha = 0.01$ ($z \approx 2.326$) often result in too many false alarms during normal operation. To strictly limit these false positives, we apply a highly conservative threshold by choosing a z-score of **$z = 3.0$**. This corresponds to a confidence bound of $99.865\%$, giving $\alpha \approx 0.00135$. By doing so, we expect only about $0.135\%$ of nominal data to be incorrectly flagged, ensuring the system only alerts on severe deviations.
+
+A window is declared anomalous if and only if its reconstruction error exceeds this threshold:
 
 $$a(\mathbf{w}) = \mathbb{1}\left[e(\mathbf{w}) > \tau\right]$$
 
@@ -187,17 +189,11 @@ $$\delta_t^h = \frac{\partial \mathcal{L}}{\partial h_t} = ({U^E_f}^\top \delta_
 
 where $\delta_{t}^f = (\delta_t^h \odot o_t \odot (1 - \tanh^2(c_t)) \odot c_{t-1}) \odot \sigma'(a_{f,t})$ is the gate-level error, and $\partial\mathcal{L}/\partial z$ is back-propagated from the decoder through the bottleneck connection. This backward recurrence constitutes the core of BPTT.
 
-### 3.3 The Anomaly Decision Rule
+### 3.3 Statistical Decision Logic
 
-For a chosen false-positive rate $\alpha \in (0, 1)$, the full decision pipeline from raw window to binary label is:
+For a chosen expected false-positive rate $\alpha \in (0, 1)$, the full decision pipeline from raw window to binary label is:
 
 $$\mathbf{w} \xrightarrow{\text{Encoder}} \mathbf{z} \xrightarrow{\text{Decoder}} \mathbf{r} \xrightarrow{\text{MSE}} e(\mathbf{w}) \xrightarrow{\tau} a(\mathbf{w}) = \mathbb{1}\left[e(\mathbf{w}) > \tau\right]$$
-
-where the threshold is:
-
-$$\tau = \mu_e + \Phi^{-1}(1 - \alpha) \sigma_e$$
-
-Common choices are $\alpha = 0.05$ (giving $\Phi^{-1}(0.95) \approx 1.645$) and $\alpha = 0.01$ (giving $\Phi^{-1}(0.99) \approx 2.326$). A more conservative threshold reduces false positives at the cost of increased false negatives. Under the Gaussian assumption, the expected fraction of normal windows incorrectly flagged is exactly $\alpha$.
 
 ---
 
@@ -207,14 +203,16 @@ The computational framework is structured as a four-phase sequential pipeline op
 
 | Phase | Process | Methodological Details |
 | :--- | :--- | :--- |
-| **1** | **Data Ingestion** | Loads both CSV files directly from the NAB GitHub repository. Parses the timestamp-column as a datetime-index. Saves raw DataFrames to the data-directory. Computes normalisation statistics $\mu$, $\sigma$ from the anomaly-free series only to prevent data leakage. |
-| **2** | **Window Construction** | Applies the sliding-window procedure with stride 1 to both standardised series, producing NumPy arrays of shape $(N - T + 1, T, 1)$. Splits the normal-data windows into a training partition and a validation partition. |
-| **3** | **Model Training** | Instantiates the encoder–decoder LSTM, compiles with the Adam optimiser and MSE loss $\mathcal{L}(\boldsymbol{\phi})$. Trains for a fixed number of epochs with early stopping monitored on validation loss. |
+| **1** | **Data Ingestion** | Loads the single CSV directly from the NAB GitHub repository. The sequence is split chronologically: the first 2500 steps serve as the anomaly-free normal recording, and the remainder forms the test set. Computes normalisation statistics $\mu$, $\sigma$ exclusively from the normal sequence. |
+| **2** | **Window Construction** | Applies the sliding-window procedure with stride 1 to both standardised subsets, producing NumPy arrays of shape $(N - T + 1, T, 1)$. The normal-data windows form the training partition. |
+| **3** | **Model Training** | Instantiates the encoder–decoder LSTM. Training utilises standard stochastic gradient descent and MSE loss $\mathcal{L}(\boldsymbol{\phi})$ with backpropagation through time. Teacher forcing is applied to the decoder to stabilise convergence. |
 | **4** | **Anomaly Scoring** | Runs inference on all test windows, computes per-window MSE, estimates $\mu_e$ and $\sigma_e$ from training-set errors, applies the threshold $\tau$, and overlays detected anomaly regions on the original time series. |
 
 ### 4.1 Data Ingestion and Normalisation
 
-Both datasets are fetched from their respective raw-content URLs. Each CSV has two columns: timestamp (parsed as pd.Timestamp) and value (float64). Normalisation parameters are estimated from the training series alone, where $K$ is the length of the normal sequence:
+The dataset is fetched from its raw-content URL in the NAB repository. The CSV contains two columns: timestamp and value (float64, representing machine temperature). Because a continuously operating machine eventually degrades, the single dataset is chronologically split. The initial sequence is designated as the normal operating condition, while the latter part of the sequence, containing the system failures, serves as the test set. 
+
+Normalisation parameters are estimated from the normal training series alone, where $K$ is the length of this normal sequence:
 
 $$\mu = \frac{1}{K}\sum_{t=1}^{K} y_t, \qquad \sigma = \sqrt{\frac{1}{K}\sum_{t=1}^{K}\left(y_t - \mu\right)^2}$$
 
